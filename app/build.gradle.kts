@@ -1,3 +1,6 @@
+import java.security.KeyStore
+import java.security.MessageDigest
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -13,6 +16,8 @@ val hasReleaseSigning = listOf(
     releaseKeyAlias,
     releaseKeyPassword,
 ).all { !it.isNullOrBlank() }
+val expectedReleaseCertificateSha256 =
+    "e07bdbf14ff6a80c419595758cf38e8e3473cf62edb710c877fe11d7d6091349"
 
 val externalBuildRoot = providers.environmentVariable("DRIVEPLAY_BUILD_DIR")
     .orElse(File(System.getProperty("java.io.tmpdir"), "DrivePlayKeeperBuild").absolutePath)
@@ -67,6 +72,40 @@ android {
 dependencies {
     implementation("androidx.car.app:app:1.4.0")
     testImplementation("junit:junit:4.13.2")
+}
+
+val verifyReleaseSigningKey = tasks.register("verifyReleaseSigningKey") {
+    group = "verification"
+    description = "Checks that release builds use the same certificate as v1.0.0."
+
+    doLast {
+        check(hasReleaseSigning) {
+            "Release signing variables are required before building a release APK."
+        }
+
+        val keystoreFile = file(checkNotNull(releaseKeystorePath))
+        check(keystoreFile.isFile) {
+            "Release keystore not found: ${keystoreFile.absolutePath}"
+        }
+
+        val keystore = KeyStore.getInstance("JKS")
+        keystoreFile.inputStream().use { input ->
+            keystore.load(input, checkNotNull(releaseStorePassword).toCharArray())
+        }
+        val certificate = keystore.getCertificate(checkNotNull(releaseKeyAlias))
+            ?: error("Release key alias was not found in the configured keystore.")
+        val actualCertificateSha256 = MessageDigest.getInstance("SHA-256")
+            .digest(certificate.encoded)
+            .joinToString("") { byte -> "%02x".format(byte) }
+
+        check(actualCertificateSha256 == expectedReleaseCertificateSha256) {
+            "Release certificate does not match v1.0.0. Refusing to build an incompatible APK."
+        }
+    }
+}
+
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn(verifyReleaseSigningKey)
 }
 
 tasks.register<Copy>("packageDebugApk") {
