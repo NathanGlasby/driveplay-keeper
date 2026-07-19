@@ -14,6 +14,10 @@ val hasReleaseSigning = listOf(
     releaseKeyPassword,
 ).all { !it.isNullOrBlank() }
 
+val externalBuildRoot = providers.environmentVariable("DRIVEPLAY_BUILD_DIR")
+    .orElse(File(System.getProperty("java.io.tmpdir"), "DrivePlayKeeperBuild").absolutePath)
+layout.buildDirectory.set(file("${externalBuildRoot.get()}/app"))
+
 android {
     namespace = "za.co.driveplaykeeper"
     compileSdk = 34
@@ -22,8 +26,8 @@ android {
         applicationId = "za.co.driveplaykeeper"
         minSdk = 28
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -69,7 +73,7 @@ tasks.register<Copy>("packageDebugApk") {
     dependsOn("assembleDebug")
     from(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk"))
     into(rootProject.layout.projectDirectory.dir("artifacts"))
-    rename { "DrivePlayKeeper-1.0.0-debug.apk" }
+    rename { "DrivePlayKeeper-1.0.1-debug.apk" }
 }
 
 tasks.register<Copy>("packageReleaseApk") {
@@ -81,5 +85,5 @@ tasks.register<Copy>("packageReleaseApk") {
     }
     from(layout.buildDirectory.file("outputs/apk/release/app-release.apk"))
     into(rootProject.layout.projectDirectory.dir("artifacts"))
-    rename { "DrivePlayKeeper-1.0.0.apk" }
+    rename { "DrivePlayKeeper-1.0.1.apk" }
 }

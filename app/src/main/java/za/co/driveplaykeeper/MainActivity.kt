@@ -2,6 +2,7 @@ package za.co.driveplaykeeper
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.ActivityManager
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.ComponentName
@@ -9,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -20,12 +22,16 @@ import android.widget.ScrollView
 import android.widget.Space
 import android.widget.Switch
 import android.widget.TextView
+import java.text.DateFormat
+import java.util.Date
 
 class MainActivity : Activity() {
     private lateinit var preferences: AppPreferences
     private lateinit var notificationAccessButton: Button
     private lateinit var notificationAccessGranted: TextView
     private lateinit var accessStatus: TextView
+    private lateinit var monitorStatus: TextView
+    private lateinit var batteryStatus: TextView
     private lateinit var carStatus: TextView
     private lateinit var spotifyStatus: TextView
     private lateinit var playbackStatus: TextView
@@ -43,6 +49,12 @@ class MainActivity : Activity() {
                 SpotifyPlaybackListener.EXTRA_SPOTIFY_SESSION,
                 false,
             )
+            val error = intent.getStringExtra(SpotifyPlaybackListener.EXTRA_ERROR)
+            if (error == null) {
+                monitorStatus.text = getString(R.string.status_monitor_connected_now)
+            } else {
+                updateListenerStatus()
+            }
             carStatus.text = if (connected) {
                 getString(R.string.status_android_auto_connected)
             } else {
@@ -56,7 +68,7 @@ class MainActivity : Activity() {
             intent.getStringExtra(SpotifyPlaybackListener.EXTRA_PLAYBACK)?.let {
                 playbackStatus.text = getString(R.string.status_playback_format, it)
             }
-            intent.getStringExtra(SpotifyPlaybackListener.EXTRA_ERROR)?.let {
+            error?.let {
                 playbackStatus.text = it
             }
         }
@@ -86,6 +98,8 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         updateAccessStatus()
+        updateListenerStatus()
+        updateBatteryStatus()
         sendBroadcast(Intent(SpotifyPlaybackListener.ACTION_REFRESH).setPackage(packageName))
     }
 
@@ -168,14 +182,35 @@ class MainActivity : Activity() {
         }
         content.addView(notificationAccessGranted)
 
+        content.addView(TextView(this).apply {
+            text = getString(R.string.battery_settings_explanation)
+            textSize = 13f
+            setTextColor(Color.LTGRAY)
+            setPadding(0, dp(16), 0, dp(8))
+        })
+        content.addView(Button(this).apply {
+            text = getString(R.string.open_battery_settings)
+            setOnClickListener {
+                val appSettings = Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", packageName, null),
+                )
+                startActivity(appSettings)
+            }
+        })
+
         content.addView(Space(this), LinearLayout.LayoutParams(1, dp(24)))
         content.addView(sectionTitle(getString(R.string.live_status)))
 
         accessStatus = statusLine(getString(R.string.status_checking_access))
+        monitorStatus = statusLine(getString(R.string.status_monitor_never_connected))
+        batteryStatus = statusLine(getString(R.string.status_battery_not_restricted))
         carStatus = statusLine(getString(R.string.status_android_auto_unknown))
         spotifyStatus = statusLine(getString(R.string.status_spotify_not_found))
         playbackStatus = statusLine(getString(R.string.status_playback_format, getString(R.string.playback_unavailable)))
         content.addView(accessStatus)
+        content.addView(monitorStatus)
+        content.addView(batteryStatus)
         content.addView(carStatus)
         content.addView(spotifyStatus)
         content.addView(playbackStatus)
@@ -220,6 +255,43 @@ class MainActivity : Activity() {
             getString(R.string.status_access_granted)
         } else {
             getString(R.string.status_access_required)
+        }
+    }
+
+    private fun updateListenerStatus() {
+        val event = preferences.listenerLifecycleEvent
+        val recordedAt = preferences.listenerLifecycleAt
+        if (event == null || recordedAt <= 0L) {
+            monitorStatus.text = getString(R.string.status_monitor_never_connected)
+            return
+        }
+
+        val formattedTime = DateFormat.getDateTimeInstance(
+            DateFormat.MEDIUM,
+            DateFormat.SHORT,
+        ).format(Date(recordedAt))
+
+        monitorStatus.text = when (event) {
+            AppPreferences.EVENT_CONNECTED ->
+                getString(R.string.status_monitor_last_connected, formattedTime)
+            AppPreferences.EVENT_DISCONNECTED ->
+                getString(R.string.status_monitor_disconnected, formattedTime)
+            AppPreferences.EVENT_DESTROYED ->
+                getString(R.string.status_monitor_destroyed, formattedTime)
+            AppPreferences.EVENT_RECOVERY_AFTER_RESTART ->
+                getString(R.string.status_monitor_recovery_restart, formattedTime)
+            AppPreferences.EVENT_RECOVERY_AFTER_UPDATE ->
+                getString(R.string.status_monitor_recovery_update, formattedTime)
+            else -> getString(R.string.status_monitor_never_connected)
+        }
+    }
+
+    private fun updateBatteryStatus() {
+        val activityManager = getSystemService(ActivityManager::class.java)
+        batteryStatus.text = if (activityManager.isBackgroundRestricted) {
+            getString(R.string.status_battery_restricted)
+        } else {
+            getString(R.string.status_battery_not_restricted)
         }
     }
 
