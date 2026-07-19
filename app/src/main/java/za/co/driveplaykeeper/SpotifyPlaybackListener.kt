@@ -99,6 +99,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
 
     override fun onListenerConnected() {
         super.onListenerConnected()
+        preferences.recordListenerConnected()
         try {
             sessionManager.addOnActiveSessionsChangedListener(
                 sessionsChangedListener,
@@ -113,6 +114,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
     }
 
     override fun onListenerDisconnected() {
+        preferences.recordListenerDisconnected()
         spotifyController?.unregisterCallback(playbackCallback)
         spotifyController = null
         decisionEngine.reset()
@@ -122,6 +124,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
     }
 
     override fun onDestroy() {
+        preferences.recordListenerDestroyed()
         try {
             sessionManager.removeOnActiveSessionsChangedListener(sessionsChangedListener)
         } catch (_: Exception) {

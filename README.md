@@ -30,6 +30,11 @@ DrivePlay Keeper requires Android 9 or newer.
 
 The live status section shows whether the app can see Android Auto and Spotify.
 
+For reliable background operation, open the app's battery settings and select
+**Unrestricted** or **Allow background usage**. On phones with Sleeping or Deep
+sleeping app lists, make sure DrivePlay Keeper is not in either list. The media
+monitor is managed by Android and does not require a permanent notification.
+
 ## Why it needs notification access
 
 Android only lets approved notification listeners control another app's active
