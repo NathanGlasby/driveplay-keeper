@@ -7,6 +7,7 @@
     <string name="power_event_only">Only act after a phone charging-power change (safer, but may miss the pause)</string>
     <string name="safety_explanation">A second Pause within 8 seconds is always respected. Playback ending or Spotify stopping is never restarted.</string>
     <string name="open_notification_access">Grant notification access</string>
+    <string name="notification_access_granted">✓ Notification access granted</string>
     <string name="live_status">Live status</string>
     <string name="status_checking_access">Notification access: checking…</string>
     <string name="status_access_granted">Notification access: granted</string>

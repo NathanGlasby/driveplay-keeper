@@ -23,6 +23,8 @@ import android.widget.TextView
 
 class MainActivity : Activity() {
     private lateinit var preferences: AppPreferences
+    private lateinit var notificationAccessButton: Button
+    private lateinit var notificationAccessGranted: TextView
     private lateinit var accessStatus: TextView
     private lateinit var carStatus: TextView
     private lateinit var spotifyStatus: TextView
@@ -149,12 +151,22 @@ class MainActivity : Activity() {
             setPadding(0, dp(8), 0, dp(20))
         })
 
-        content.addView(Button(this).apply {
+        notificationAccessButton = Button(this).apply {
             text = getString(R.string.open_notification_access)
             setOnClickListener {
                 startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
             }
-        })
+        }
+        content.addView(notificationAccessButton)
+
+        notificationAccessGranted = TextView(this).apply {
+            text = getString(R.string.notification_access_granted)
+            textSize = 16f
+            setTextColor(Color.rgb(30, 215, 96))
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            visibility = View.GONE
+        }
+        content.addView(notificationAccessGranted)
 
         content.addView(Space(this), LinearLayout.LayoutParams(1, dp(24)))
         content.addView(sectionTitle(getString(R.string.live_status)))
@@ -200,7 +212,11 @@ class MainActivity : Activity() {
     private fun updateAccessStatus() {
         val manager = getSystemService(NotificationManager::class.java)
         val component = ComponentName(this, SpotifyPlaybackListener::class.java)
-        accessStatus.text = if (manager.isNotificationListenerAccessGranted(component)) {
+        val accessGranted = manager.isNotificationListenerAccessGranted(component)
+
+        notificationAccessButton.visibility = if (accessGranted) View.GONE else View.VISIBLE
+        notificationAccessGranted.visibility = if (accessGranted) View.VISIBLE else View.GONE
+        accessStatus.text = if (accessGranted) {
             getString(R.string.status_access_granted)
         } else {
             getString(R.string.status_access_required)
