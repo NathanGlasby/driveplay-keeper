@@ -67,6 +67,11 @@ Run the checks and create the APK on Windows:
 Gradle puts the finished APK in `artifacts/`. Android build intermediates go to
 the system temporary directory to avoid OneDrive file-locking problems.
 
+Release builds require the original DrivePlay Keeper keystore and the four
+`DRIVEPLAY_*` signing environment variables. The build checks the signing
+certificate against the one used for version 1.0.0 and refuses to create a
+release APK if a different key is configured.
+
 ## License
 
 DrivePlay Keeper is available under the [MIT License](LICENSE).
