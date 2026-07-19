@@ -49,7 +49,12 @@ class MainActivity : Activity() {
                 SpotifyPlaybackListener.EXTRA_SPOTIFY_SESSION,
                 false,
             )
-            monitorStatus.text = getString(R.string.status_monitor_connected_now)
+            val error = intent.getStringExtra(SpotifyPlaybackListener.EXTRA_ERROR)
+            if (error == null) {
+                monitorStatus.text = getString(R.string.status_monitor_connected_now)
+            } else {
+                updateListenerStatus()
+            }
             carStatus.text = if (connected) {
                 getString(R.string.status_android_auto_connected)
             } else {
@@ -63,7 +68,7 @@ class MainActivity : Activity() {
             intent.getStringExtra(SpotifyPlaybackListener.EXTRA_PLAYBACK)?.let {
                 playbackStatus.text = getString(R.string.status_playback_format, it)
             }
-            intent.getStringExtra(SpotifyPlaybackListener.EXTRA_ERROR)?.let {
+            error?.let {
                 playbackStatus.text = it
             }
         }
