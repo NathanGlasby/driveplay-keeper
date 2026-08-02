@@ -17,6 +17,10 @@ class AppPreferences(context: Context) {
         get() = preferences.getBoolean(KEY_REQUIRE_POWER_EVENT, false)
         set(value) = preferences.edit().putBoolean(KEY_REQUIRE_POWER_EVENT, value).apply()
 
+    var pauseOnAndroidAutoDisconnect: Boolean
+        get() = preferences.getBoolean(KEY_PAUSE_ON_ANDROID_AUTO_DISCONNECT, true)
+        set(value) = preferences.edit().putBoolean(KEY_PAUSE_ON_ANDROID_AUTO_DISCONNECT, value).apply()
+
     var resumeDelayMs: Long
         get() = preferences.getLong(KEY_RESUME_DELAY_MS, DEFAULT_RESUME_DELAY_MS)
         set(value) = preferences.edit().putLong(KEY_RESUME_DELAY_MS, value).apply()
@@ -58,6 +62,7 @@ class AppPreferences(context: Context) {
         private const val KEY_ENABLED = "enabled"
         private const val KEY_REQUIRE_ANDROID_AUTO = "require_android_auto"
         private const val KEY_REQUIRE_POWER_EVENT = "require_power_event"
+        private const val KEY_PAUSE_ON_ANDROID_AUTO_DISCONNECT = "pause_on_android_auto_disconnect"
         private const val KEY_RESUME_DELAY_MS = "resume_delay_ms"
         private const val KEY_LISTENER_LIFECYCLE_EVENT = "listener_lifecycle_event"
         private const val KEY_LISTENER_LIFECYCLE_AT = "listener_lifecycle_at"
