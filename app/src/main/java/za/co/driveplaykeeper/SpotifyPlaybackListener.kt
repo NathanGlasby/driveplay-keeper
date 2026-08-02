@@ -31,12 +31,13 @@ class SpotifyPlaybackListener : NotificationListenerService() {
     private val carConnectionObserver = Observer<Int> { connectionType ->
         val wasAndroidAutoConnected = androidAutoConnected
         androidAutoConnected = connectionType == CarConnection.CONNECTION_TYPE_PROJECTION
-        if (wasAndroidAutoConnected && !androidAutoConnected) {
+        if (wasAndroidAutoConnected &&
+            !androidAutoConnected &&
+            preferences.pauseOnAndroidAutoDisconnect
+        ) {
             cancelPendingResume()
             decisionEngine.onAndroidAutoDisconnected()
-            if (preferences.pauseOnAndroidAutoDisconnect) {
-                pauseSpotifyForAndroidAutoDisconnect()
-            }
+            pauseSpotifyForAndroidAutoDisconnect()
         }
         publishStatus()
         if (!androidAutoConnected && preferences.requireAndroidAuto && !wasAndroidAutoConnected) {
@@ -197,6 +198,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
                     publishStatus(playback = getString(R.string.playback_resuming))
                     scheduleResume(spotifyController)
                 } else {
+                    cancelPendingResume()
                     publishStatus(playback = getString(R.string.playback_paused))
                 }
             }
