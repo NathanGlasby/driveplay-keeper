@@ -5,6 +5,8 @@
     <string name="enable_protection">Enable Spotify resume protection</string>
     <string name="require_android_auto">Only act while Android Auto is connected</string>
     <string name="power_event_only">Only act after a phone charging-power change (safer, but may miss the pause)</string>
+    <string name="pause_on_android_auto_disconnect">Pause Spotify when Android Auto disconnects</string>
+    <string name="disconnect_pause_explanation">Enabled by default: when Android Auto disconnects, DrivePlay Keeper pauses Spotify, cancels any pending resume, and leaves it paused until Spotify is started again. Turn this off if it does not suit your setup.</string>
     <string name="safety_explanation">A second Pause within 8 seconds is always respected. Playback ending or Spotify stopping is never restarted.</string>
     <string name="open_notification_access">Grant notification access</string>
     <string name="notification_access_granted">✓ Notification access granted</string>
@@ -33,6 +35,7 @@
     <string name="playback_playing">playing and protected</string>
     <string name="playback_resuming">unexpected pause; resuming once</string>
     <string name="playback_paused">paused and left alone</string>
+    <string name="playback_paused_after_android_auto_disconnect">Android Auto disconnected; Spotify paused</string>
     <string name="playback_idle">idle</string>
     <string name="playback_unavailable">waiting</string>
     <string name="how_it_works_title">How it behaves</string>

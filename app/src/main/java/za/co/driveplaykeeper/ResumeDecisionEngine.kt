@@ -32,6 +32,14 @@ class ResumeDecisionEngine(
         lastPowerEventMs = clock()
     }
 
+    /** Marks an Android Auto disconnect as an intentional stop until playback starts again. */
+    fun onAndroidAutoDisconnected() {
+        playingSinceMs = null
+        lastAutoResumeMs = null
+        lastPowerEventMs = null
+        suppressUntilPlaybackRestarts = true
+    }
+
     fun shouldResume(
         enabled: Boolean,
         androidAutoConnected: Boolean,

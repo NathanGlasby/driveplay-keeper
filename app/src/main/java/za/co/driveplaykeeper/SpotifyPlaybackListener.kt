@@ -26,11 +26,21 @@ class SpotifyPlaybackListener : NotificationListenerService() {
     private var spotifyController: MediaController? = null
     private var androidAutoConnected = false
     private var carConnection: CarConnection? = null
+    private var pendingResume: Runnable? = null
 
     private val carConnectionObserver = Observer<Int> { connectionType ->
+        val wasAndroidAutoConnected = androidAutoConnected
         androidAutoConnected = connectionType == CarConnection.CONNECTION_TYPE_PROJECTION
+        if (wasAndroidAutoConnected &&
+            !androidAutoConnected &&
+            preferences.pauseOnAndroidAutoDisconnect
+        ) {
+            cancelPendingResume()
+            decisionEngine.onAndroidAutoDisconnected()
+            pauseSpotifyForAndroidAutoDisconnect()
+        }
         publishStatus()
-        if (!androidAutoConnected && preferences.requireAndroidAuto) {
+        if (!androidAutoConnected && preferences.requireAndroidAuto && !wasAndroidAutoConnected) {
             decisionEngine.reset()
         }
     }
@@ -115,6 +125,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
 
     override fun onListenerDisconnected() {
         preferences.recordListenerDisconnected()
+        cancelPendingResume()
         spotifyController?.unregisterCallback(playbackCallback)
         spotifyController = null
         decisionEngine.reset()
@@ -134,7 +145,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
         carConnection?.type?.removeObserver(carConnectionObserver)
         unregisterReceiver(powerReceiver)
         unregisterReceiver(refreshReceiver)
-        mainHandler.removeCallbacksAndMessages(null)
+        cancelPendingResume()
         super.onDestroy()
     }
 
@@ -154,6 +165,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
         }
 
         spotifyController?.unregisterCallback(playbackCallback)
+        cancelPendingResume()
         spotifyController = nextController
         decisionEngine.reset()
         nextController?.registerCallback(playbackCallback, mainHandler)
@@ -184,8 +196,9 @@ class SpotifyPlaybackListener : NotificationListenerService() {
 
                 if (shouldResume) {
                     publishStatus(playback = getString(R.string.playback_resuming))
-                    mainHandler.postDelayed({ resumeSpotifyOnce() }, preferences.resumeDelayMs)
+                    scheduleResume(spotifyController)
                 } else {
+                    cancelPendingResume()
                     publishStatus(playback = getString(R.string.playback_paused))
                 }
             }
@@ -204,6 +217,31 @@ class SpotifyPlaybackListener : NotificationListenerService() {
         if (controller.playbackState?.state != PlaybackState.STATE_PAUSED) return
 
         controller.transportControls.play()
+    }
+
+    private fun scheduleResume(controller: MediaController?) {
+        cancelPendingResume()
+        val sessionToken = controller?.sessionToken ?: return
+        val callback = Runnable {
+            pendingResume = null
+            if (spotifyController?.sessionToken != sessionToken) return@Runnable
+            resumeSpotifyOnce()
+        }
+        pendingResume = callback
+        mainHandler.postDelayed(callback, preferences.resumeDelayMs)
+    }
+
+    private fun cancelPendingResume() {
+        pendingResume?.let(mainHandler::removeCallbacks)
+        pendingResume = null
+    }
+
+    private fun pauseSpotifyForAndroidAutoDisconnect() {
+        val controller = spotifyController ?: return
+        if (controller.playbackState?.state != PlaybackState.STATE_PLAYING) return
+
+        controller.transportControls.pause()
+        publishStatus(playback = getString(R.string.playback_paused_after_android_auto_disconnect))
     }
 
     private fun publishStatus(playback: String? = null, error: String? = null) {

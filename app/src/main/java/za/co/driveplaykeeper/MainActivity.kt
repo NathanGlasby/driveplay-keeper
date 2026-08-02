@@ -158,6 +158,22 @@ class MainActivity : Activity() {
         }
         content.addView(powerOnly)
 
+        val pauseOnDisconnect = CheckBox(this).apply {
+            text = getString(R.string.pause_on_android_auto_disconnect)
+            setTextColor(Color.WHITE)
+            isChecked = preferences.pauseOnAndroidAutoDisconnect
+            setOnCheckedChangeListener { _, checked ->
+                preferences.pauseOnAndroidAutoDisconnect = checked
+            }
+        }
+        content.addView(pauseOnDisconnect)
+        content.addView(TextView(this).apply {
+            text = getString(R.string.disconnect_pause_explanation)
+            textSize = 13f
+            setTextColor(Color.LTGRAY)
+            setPadding(0, 0, 0, dp(8))
+        })
+
         content.addView(TextView(this).apply {
             text = getString(R.string.safety_explanation)
             textSize = 13f
