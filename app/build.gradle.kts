@@ -31,8 +31,8 @@ android {
         applicationId = "za.co.driveplaykeeper"
         minSdk = 28
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -112,7 +112,7 @@ tasks.register<Copy>("packageDebugApk") {
     dependsOn("assembleDebug")
     from(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk"))
     into(rootProject.layout.projectDirectory.dir("artifacts"))
-    rename { "DrivePlayKeeper-1.0.1-debug.apk" }
+    rename { "DrivePlayKeeper-1.0.2-debug.apk" }
 }
 
 tasks.register<Copy>("packageReleaseApk") {
@@ -124,5 +124,5 @@ tasks.register<Copy>("packageReleaseApk") {
     }
     from(layout.buildDirectory.file("outputs/apk/release/app-release.apk"))
     into(rootProject.layout.projectDirectory.dir("artifacts"))
-    rename { "DrivePlayKeeper-1.0.1.apk" }
+    rename { "DrivePlayKeeper-1.0.2.apk" }
 }
