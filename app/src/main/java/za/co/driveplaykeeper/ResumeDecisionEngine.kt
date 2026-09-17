@@ -1,77 +1,34 @@
 package za.co.driveplaykeeper
 
-/**
- * Small, Android-free state machine so the safety behaviour can be unit tested.
- *
- * A first pause is auto-resumed. A second pause shortly after that resume is
- * treated as deliberate and disables protection until playback starts again.
- */
-class ResumeDecisionEngine(
-    private val clock: () -> Long,
-    private val manualPauseWindowMs: Long = 8_000L,
-    private val minimumPlayingTimeMs: Long = 4_000L,
-    private val powerEventWindowMs: Long = 10_000L,
-) {
+class ResumeDecisionEngine(private val clock: () -> Long) {
+    enum class Decision { RESUME, DISABLED, NO_ANDROID_AUTO, NOT_ARMED, SUPPRESSED, NO_RECENT_POWER_EVENT }
     private var playingSinceMs: Long? = null
     private var lastAutoResumeMs: Long? = null
     private var lastPowerEventMs: Long? = null
     private var suppressUntilPlaybackRestarts = false
 
-    fun onPlaying() {
-        if (playingSinceMs == null) {
-            playingSinceMs = clock()
-        }
-        suppressUntilPlaybackRestarts = false
-    }
+    fun onPlaying() { if (playingSinceMs == null) playingSinceMs = clock(); suppressUntilPlaybackRestarts = false }
+    fun onNotPlaying() { playingSinceMs = null }
+    fun onPowerEvent() { lastPowerEventMs = clock() }
+    fun onAutoResume() { lastAutoResumeMs = clock() }
+    fun onAndroidAutoDisconnected() { playingSinceMs = null; lastAutoResumeMs = null; lastPowerEventMs = null; suppressUntilPlaybackRestarts = true }
 
-    fun onNotPlaying() {
-        playingSinceMs = null
-    }
-
-    fun onPowerEvent() {
-        lastPowerEventMs = clock()
-    }
-
-    /** Marks an Android Auto disconnect as an intentional stop until playback starts again. */
-    fun onAndroidAutoDisconnected() {
-        playingSinceMs = null
-        lastAutoResumeMs = null
-        lastPowerEventMs = null
-        suppressUntilPlaybackRestarts = true
-    }
-
-    fun shouldResume(
-        enabled: Boolean,
-        androidAutoConnected: Boolean,
-        requireAndroidAuto: Boolean,
-        requirePowerEvent: Boolean,
-    ): Boolean {
+    fun decide(enabled: Boolean, androidAutoConnected: Boolean, requireAndroidAuto: Boolean, requirePowerEvent: Boolean, minimumPlayingTimeMs: Long, manualPauseWindowMs: Long, powerEventWindowMs: Long = 10_000L): Decision {
         val now = clock()
-        val startedAt = playingSinceMs ?: return false
-
-        if (!enabled || (requireAndroidAuto && !androidAutoConnected)) return false
-        if (now - startedAt < minimumPlayingTimeMs) return false
-        if (suppressUntilPlaybackRestarts) return false
-
+        if (!enabled) return Decision.DISABLED
+        val startedAt = playingSinceMs ?: return Decision.NOT_ARMED
+        if (requireAndroidAuto && !androidAutoConnected) return Decision.NO_ANDROID_AUTO
+        if (now - startedAt < minimumPlayingTimeMs) return Decision.NOT_ARMED
+        if (suppressUntilPlaybackRestarts) return Decision.SUPPRESSED
         val previousResume = lastAutoResumeMs
-        if (previousResume != null && now - previousResume <= manualPauseWindowMs) {
-            suppressUntilPlaybackRestarts = true
-            return false
-        }
-
+        if (previousResume != null && now - previousResume <= manualPauseWindowMs) { suppressUntilPlaybackRestarts = true; return Decision.SUPPRESSED }
         if (requirePowerEvent) {
-            val powerEvent = lastPowerEventMs ?: return false
-            if (now - powerEvent > powerEventWindowMs) return false
+            val powerEvent = lastPowerEventMs ?: return Decision.NO_RECENT_POWER_EVENT
+            if (now - powerEvent > powerEventWindowMs) return Decision.NO_RECENT_POWER_EVENT
         }
-
-        lastAutoResumeMs = now
-        return true
+        return Decision.RESUME
     }
 
-    fun reset() {
-        playingSinceMs = null
-        lastAutoResumeMs = null
-        lastPowerEventMs = null
-        suppressUntilPlaybackRestarts = false
-    }
+    fun shouldResume(enabled: Boolean, androidAutoConnected: Boolean, requireAndroidAuto: Boolean, requirePowerEvent: Boolean, minimumPlayingTimeMs: Long = AppPreferences.DEFAULT_MINIMUM_PLAYING_TIME_MS, manualPauseWindowMs: Long = AppPreferences.DEFAULT_MANUAL_PAUSE_WINDOW_MS) = decide(enabled, androidAutoConnected, requireAndroidAuto, requirePowerEvent, minimumPlayingTimeMs, manualPauseWindowMs) == Decision.RESUME
+    fun reset() { playingSinceMs = null; lastAutoResumeMs = null; lastPowerEventMs = null; suppressUntilPlaybackRestarts = false }
 }

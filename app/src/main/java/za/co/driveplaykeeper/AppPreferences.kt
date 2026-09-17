@@ -8,53 +8,44 @@ class AppPreferences(context: Context) {
     var enabled: Boolean
         get() = preferences.getBoolean(KEY_ENABLED, true)
         set(value) = preferences.edit().putBoolean(KEY_ENABLED, value).apply()
-
     var requireAndroidAuto: Boolean
         get() = preferences.getBoolean(KEY_REQUIRE_ANDROID_AUTO, true)
         set(value) = preferences.edit().putBoolean(KEY_REQUIRE_ANDROID_AUTO, value).apply()
-
     var requirePowerEvent: Boolean
         get() = preferences.getBoolean(KEY_REQUIRE_POWER_EVENT, false)
         set(value) = preferences.edit().putBoolean(KEY_REQUIRE_POWER_EVENT, value).apply()
-
     var pauseOnAndroidAutoDisconnect: Boolean
         get() = preferences.getBoolean(KEY_PAUSE_ON_ANDROID_AUTO_DISCONNECT, true)
         set(value) = preferences.edit().putBoolean(KEY_PAUSE_ON_ANDROID_AUTO_DISCONNECT, value).apply()
-
     var resumeDelayMs: Long
         get() = preferences.getLong(KEY_RESUME_DELAY_MS, DEFAULT_RESUME_DELAY_MS)
         set(value) = preferences.edit().putLong(KEY_RESUME_DELAY_MS, value).apply()
+    var minimumPlayingTimeMs: Long
+        get() = preferences.getLong(KEY_MINIMUM_PLAYING_TIME_MS, DEFAULT_MINIMUM_PLAYING_TIME_MS)
+        set(value) = preferences.edit().putLong(KEY_MINIMUM_PLAYING_TIME_MS, value).apply()
+    var manualPauseWindowMs: Long
+        get() = preferences.getLong(KEY_MANUAL_PAUSE_WINDOW_MS, DEFAULT_MANUAL_PAUSE_WINDOW_MS)
+        set(value) = preferences.edit().putLong(KEY_MANUAL_PAUSE_WINDOW_MS, value).apply()
+    var mediaPackage: String
+        get() = preferences.getString(KEY_MEDIA_PACKAGE, SPOTIFY_PACKAGE) ?: SPOTIFY_PACKAGE
+        set(value) = preferences.edit().putString(KEY_MEDIA_PACKAGE, value).apply()
 
-    val listenerLifecycleEvent: String?
-        get() = preferences.getString(KEY_LISTENER_LIFECYCLE_EVENT, null)
+    val listenerLifecycleEvent: String? get() = preferences.getString(KEY_LISTENER_LIFECYCLE_EVENT, null)
+    val listenerLifecycleAt: Long get() = preferences.getLong(KEY_LISTENER_LIFECYCLE_AT, 0L)
+    val decisionHistory: List<String>
+        get() = preferences.getString(KEY_DECISION_HISTORY, "").orEmpty().lineSequence().filter(String::isNotBlank).toList()
 
-    val listenerLifecycleAt: Long
-        get() = preferences.getLong(KEY_LISTENER_LIFECYCLE_AT, 0L)
-
-    fun recordListenerConnected(at: Long = System.currentTimeMillis()) {
-        recordListenerLifecycle(EVENT_CONNECTED, at)
+    fun recordDecision(message: String, at: Long = System.currentTimeMillis()) {
+        val entry = "$at|$message"
+        val history = (listOf(entry) + decisionHistory).take(MAX_DECISION_HISTORY)
+        preferences.edit().putString(KEY_DECISION_HISTORY, history.joinToString("\n")).apply()
     }
-
-    fun recordListenerDisconnected(at: Long = System.currentTimeMillis()) {
-        recordListenerLifecycle(EVENT_DISCONNECTED, at)
-    }
-
-    fun recordListenerDestroyed(at: Long = System.currentTimeMillis()) {
-        recordListenerLifecycle(EVENT_DESTROYED, at)
-    }
-
-    fun recordRecoveryRequested(afterUpdate: Boolean, at: Long = System.currentTimeMillis()) {
-        recordListenerLifecycle(
-            if (afterUpdate) EVENT_RECOVERY_AFTER_UPDATE else EVENT_RECOVERY_AFTER_RESTART,
-            at,
-        )
-    }
-
+    fun recordListenerConnected(at: Long = System.currentTimeMillis()) = recordListenerLifecycle(EVENT_CONNECTED, at)
+    fun recordListenerDisconnected(at: Long = System.currentTimeMillis()) = recordListenerLifecycle(EVENT_DISCONNECTED, at)
+    fun recordListenerDestroyed(at: Long = System.currentTimeMillis()) = recordListenerLifecycle(EVENT_DESTROYED, at)
+    fun recordRecoveryRequested(afterUpdate: Boolean, at: Long = System.currentTimeMillis()) = recordListenerLifecycle(if (afterUpdate) EVENT_RECOVERY_AFTER_UPDATE else EVENT_RECOVERY_AFTER_RESTART, at)
     private fun recordListenerLifecycle(event: String, at: Long) {
-        preferences.edit()
-            .putString(KEY_LISTENER_LIFECYCLE_EVENT, event)
-            .putLong(KEY_LISTENER_LIFECYCLE_AT, at)
-            .apply()
+        preferences.edit().putString(KEY_LISTENER_LIFECYCLE_EVENT, event).putLong(KEY_LISTENER_LIFECYCLE_AT, at).apply()
     }
 
     companion object {
@@ -64,15 +55,22 @@ class AppPreferences(context: Context) {
         private const val KEY_REQUIRE_POWER_EVENT = "require_power_event"
         private const val KEY_PAUSE_ON_ANDROID_AUTO_DISCONNECT = "pause_on_android_auto_disconnect"
         private const val KEY_RESUME_DELAY_MS = "resume_delay_ms"
+        private const val KEY_MINIMUM_PLAYING_TIME_MS = "minimum_playing_time_ms"
+        private const val KEY_MANUAL_PAUSE_WINDOW_MS = "manual_pause_window_ms"
+        private const val KEY_MEDIA_PACKAGE = "media_package"
+        private const val KEY_DECISION_HISTORY = "decision_history"
         private const val KEY_LISTENER_LIFECYCLE_EVENT = "listener_lifecycle_event"
         private const val KEY_LISTENER_LIFECYCLE_AT = "listener_lifecycle_at"
-
         const val EVENT_CONNECTED = "connected"
         const val EVENT_DISCONNECTED = "disconnected"
         const val EVENT_DESTROYED = "destroyed"
         const val EVENT_RECOVERY_AFTER_RESTART = "recovery_after_restart"
         const val EVENT_RECOVERY_AFTER_UPDATE = "recovery_after_update"
-
+        const val SPOTIFY_PACKAGE = "com.spotify.music"
+        const val YOUTUBE_MUSIC_PACKAGE = "com.google.android.apps.youtube.music"
         const val DEFAULT_RESUME_DELAY_MS = 900L
+        const val DEFAULT_MINIMUM_PLAYING_TIME_MS = 4_000L
+        const val DEFAULT_MANUAL_PAUSE_WINDOW_MS = 8_000L
+        private const val MAX_DECISION_HISTORY = 8
     }
 }

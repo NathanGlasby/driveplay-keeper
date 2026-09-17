@@ -20,6 +20,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val preferences by lazy { AppPreferences(this) }
     private val decisionEngine = ResumeDecisionEngine(clock = SystemClock::elapsedRealtime)
+    private var lastDecision = ResumeDecisionEngine.Decision.NOT_ARMED
 
     private lateinit var sessionManager: MediaSessionManager
     private lateinit var listenerComponent: ComponentName
@@ -58,6 +59,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
         override fun onSessionDestroyed() {
             spotifyController = null
             decisionEngine.reset()
+            lastDecision = ResumeDecisionEngine.Decision.NOT_ARMED
             refreshSessions()
         }
     }
@@ -129,6 +131,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
         spotifyController?.unregisterCallback(playbackCallback)
         spotifyController = null
         decisionEngine.reset()
+        lastDecision = ResumeDecisionEngine.Decision.NOT_ARMED
         publishStatus(error = getString(R.string.status_listener_disconnected))
         requestRebind(listenerComponent)
         super.onListenerDisconnected()
@@ -158,7 +161,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
     }
 
     private fun attachToSpotify(controllers: List<MediaController>) {
-        val nextController = controllers.firstOrNull { it.packageName == SPOTIFY_PACKAGE }
+        val nextController = controllers.firstOrNull { it.packageName == preferences.mediaPackage }
         if (spotifyController?.sessionToken == nextController?.sessionToken) {
             handlePlaybackState(nextController?.playbackState)
             return
@@ -168,6 +171,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
         cancelPendingResume()
         spotifyController = nextController
         decisionEngine.reset()
+        lastDecision = ResumeDecisionEngine.Decision.NOT_ARMED
         nextController?.registerCallback(playbackCallback, mainHandler)
         handlePlaybackState(nextController?.playbackState)
         publishStatus()
@@ -182,16 +186,22 @@ class SpotifyPlaybackListener : NotificationListenerService() {
         when (state.state) {
             PlaybackState.STATE_PLAYING -> {
                 decisionEngine.onPlaying()
+                lastDecision = ResumeDecisionEngine.Decision.NOT_ARMED
                 publishStatus(playback = getString(R.string.playback_playing))
             }
 
             PlaybackState.STATE_PAUSED -> {
-                val shouldResume = decisionEngine.shouldResume(
+                val decision = decisionEngine.decide(
                     enabled = preferences.enabled,
                     androidAutoConnected = androidAutoConnected,
                     requireAndroidAuto = preferences.requireAndroidAuto,
                     requirePowerEvent = preferences.requirePowerEvent,
+                    minimumPlayingTimeMs = preferences.minimumPlayingTimeMs,
+                    manualPauseWindowMs = preferences.manualPauseWindowMs,
                 )
+                lastDecision = decision
+                preferences.recordDecision(decision.name.lowercase().replace('_', ' '))
+                val shouldResume = decision == ResumeDecisionEngine.Decision.RESUME
                 decisionEngine.onNotPlaying()
 
                 if (shouldResume) {
@@ -216,7 +226,15 @@ class SpotifyPlaybackListener : NotificationListenerService() {
         if (preferences.requireAndroidAuto && !androidAutoConnected) return
         if (controller.playbackState?.state != PlaybackState.STATE_PAUSED) return
 
-        controller.transportControls.play()
+        try {
+            controller.transportControls.play()
+            decisionEngine.onAutoResume()
+        } catch (_: IllegalStateException) {
+            publishStatus(error = getString(R.string.status_session_expired))
+            refreshSessions()
+        } catch (_: SecurityException) {
+            publishStatus(error = getString(R.string.status_access_required))
+        }
     }
 
     private fun scheduleResume(controller: MediaController?) {
@@ -240,7 +258,15 @@ class SpotifyPlaybackListener : NotificationListenerService() {
         val controller = spotifyController ?: return
         if (controller.playbackState?.state != PlaybackState.STATE_PLAYING) return
 
-        controller.transportControls.pause()
+        try {
+            controller.transportControls.pause()
+        } catch (_: IllegalStateException) {
+            refreshSessions()
+            return
+        } catch (_: SecurityException) {
+            publishStatus(error = getString(R.string.status_access_required))
+            return
+        }
         publishStatus(playback = getString(R.string.playback_paused_after_android_auto_disconnect))
     }
 
@@ -250,6 +276,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
             putExtra(EXTRA_ANDROID_AUTO_CONNECTED, androidAutoConnected)
             putExtra(EXTRA_SPOTIFY_SESSION, spotifyController != null)
             playback?.let { putExtra(EXTRA_PLAYBACK, it) }
+            putExtra(EXTRA_DECISION, lastDecision.name)
             error?.let { putExtra(EXTRA_ERROR, it) }
         }
         sendBroadcast(intent)
@@ -262,6 +289,6 @@ class SpotifyPlaybackListener : NotificationListenerService() {
         const val EXTRA_SPOTIFY_SESSION = "spotify_session"
         const val EXTRA_PLAYBACK = "playback"
         const val EXTRA_ERROR = "error"
-        private const val SPOTIFY_PACKAGE = "com.spotify.music"
+        const val EXTRA_DECISION = "decision"
     }
 }

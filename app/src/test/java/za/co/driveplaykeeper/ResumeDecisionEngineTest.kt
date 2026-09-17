@@ -1,5 +1,6 @@
 package za.co.driveplaykeeper
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -28,6 +29,7 @@ class ResumeDecisionEngineTest {
         engine.onPlaying()
         now = 5_000L
         assertTrue(engine.shouldResume(true, true, true, false))
+        engine.onAutoResume()
 
         engine.onNotPlaying()
         engine.onPlaying()
@@ -67,5 +69,47 @@ class ResumeDecisionEngineTest {
         engine.onPlaying()
         now = 10_000L
         assertTrue(engine.shouldResume(true, true, true, false))
+    }
+
+    @Test
+    fun manualPauseWindowStartsWhenPlayIsActuallySent() {
+        engine.onPlaying()
+        now = 5_000L
+        assertTrue(engine.shouldResume(true, true, true, false, manualPauseWindowMs = 2_000L))
+
+        // The configured resume can be delayed longer than the manual-pause window.
+        now = 8_000L
+        engine.onAutoResume()
+        engine.onNotPlaying()
+        engine.onPlaying()
+        now = 10_000L
+
+        assertFalse(engine.shouldResume(true, true, true, false, manualPauseWindowMs = 2_000L))
+    }
+
+    @Test
+    fun disabledWinsEvenWhenPlaybackIsNotArmed() {
+        assertEquals(
+            ResumeDecisionEngine.Decision.DISABLED,
+            engine.decide(
+                enabled = false,
+                androidAutoConnected = false,
+                requireAndroidAuto = true,
+                requirePowerEvent = false,
+                minimumPlayingTimeMs = 4_000L,
+                manualPauseWindowMs = 8_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun configurableArmAndManualPauseWindowsAreUsed() {
+        engine.onPlaying()
+        now = 2_000L
+        assertTrue(engine.shouldResume(true, true, true, false, minimumPlayingTimeMs = 1_000L, manualPauseWindowMs = 2_000L))
+        engine.onNotPlaying()
+        engine.onPlaying()
+        now = 5_000L
+        assertTrue(engine.shouldResume(true, true, true, false, minimumPlayingTimeMs = 1_000L, manualPauseWindowMs = 2_000L))
     }
 }

@@ -25,12 +25,12 @@ layout.buildDirectory.set(file("${externalBuildRoot.get()}/app"))
 
 android {
     namespace = "za.co.driveplaykeeper"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "za.co.driveplaykeeper"
         minSdk = 28
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 3
         versionName = "1.0.2"
 
@@ -50,7 +50,7 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             signingConfig = signingConfigs.findByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -70,7 +70,7 @@ android {
 }
 
 dependencies {
-    implementation("androidx.car.app:app:1.4.0")
+    implementation("androidx.car.app:app:1.7.0")
     testImplementation("junit:junit:4.13.2")
 }
 
@@ -112,7 +112,7 @@ tasks.register<Copy>("packageDebugApk") {
     dependsOn("assembleDebug")
     from(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk"))
     into(rootProject.layout.projectDirectory.dir("artifacts"))
-    rename { "DrivePlayKeeper-1.0.2-debug.apk" }
+    rename { "DrivePlayKeeper-${android.defaultConfig.versionName}-debug.apk" }
 }
 
 tasks.register<Copy>("packageReleaseApk") {
@@ -124,5 +124,5 @@ tasks.register<Copy>("packageReleaseApk") {
     }
     from(layout.buildDirectory.file("outputs/apk/release/app-release.apk"))
     into(rootProject.layout.projectDirectory.dir("artifacts"))
-    rename { "DrivePlayKeeper-1.0.2.apk" }
+    rename { "DrivePlayKeeper-${android.defaultConfig.versionName}.apk" }
 }
