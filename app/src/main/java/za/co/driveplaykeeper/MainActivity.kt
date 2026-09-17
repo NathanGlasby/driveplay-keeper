@@ -66,10 +66,11 @@ class MainActivity : Activity() {
             } else {
                 getString(R.string.status_android_auto_disconnected)
             }
+            val mediaAppName = selectedMediaAppName()
             spotifyStatus.text = if (spotifySession) {
-                getString(R.string.status_spotify_found)
+                getString(R.string.status_media_session_found, mediaAppName)
             } else {
-                getString(R.string.status_spotify_not_found)
+                getString(R.string.status_media_session_not_found, mediaAppName)
             }
             intent.getStringExtra(SpotifyPlaybackListener.EXTRA_PLAYBACK)?.let {
                 playbackStatus.text = getString(R.string.status_playback_format, it)
@@ -117,6 +118,11 @@ class MainActivity : Activity() {
             statusReceiverRegistered = false
         }
         super.onStop()
+    }
+
+    private fun selectedMediaAppName(): String = when (preferences.mediaPackage) {
+        AppPreferences.YOUTUBE_MUSIC_PACKAGE -> "YouTube Music"
+        else -> "Spotify"
     }
 
     @Suppress("DEPRECATION")
@@ -205,7 +211,13 @@ class MainActivity : Activity() {
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, listOf("Spotify", "YouTube Music"))
             setSelection(mediaPackages.indexOf(preferences.mediaPackage).coerceAtLeast(0))
             onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) { preferences.mediaPackage = mediaPackages[position] }
+                override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                    val selectedPackage = mediaPackages[position]
+                    if (preferences.mediaPackage != selectedPackage) {
+                        preferences.mediaPackage = selectedPackage
+                        sendBroadcast(Intent(SpotifyPlaybackListener.ACTION_REFRESH).setPackage(packageName))
+                    }
+                }
                 override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
             }
         })
@@ -266,7 +278,7 @@ class MainActivity : Activity() {
         monitorStatus = statusLine(getString(R.string.status_monitor_never_connected))
         batteryStatus = statusLine(getString(R.string.status_battery_not_restricted))
         carStatus = statusLine(getString(R.string.status_android_auto_unknown))
-        spotifyStatus = statusLine(getString(R.string.status_spotify_not_found))
+        spotifyStatus = statusLine(getString(R.string.status_media_session_not_found, selectedMediaAppName()))
         playbackStatus = statusLine(getString(R.string.status_playback_format, getString(R.string.playback_unavailable)))
         protectionStatus = statusLine(getString(R.string.status_protection_format, getString(R.string.protection_not_armed)))
         historyStatus = statusLine(formatDecisionHistory())

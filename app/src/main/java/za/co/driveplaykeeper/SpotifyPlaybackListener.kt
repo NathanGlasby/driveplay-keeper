@@ -59,6 +59,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
         override fun onSessionDestroyed() {
             spotifyController = null
             decisionEngine.reset()
+            lastDecision = ResumeDecisionEngine.Decision.NOT_ARMED
             refreshSessions()
         }
     }
@@ -130,6 +131,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
         spotifyController?.unregisterCallback(playbackCallback)
         spotifyController = null
         decisionEngine.reset()
+        lastDecision = ResumeDecisionEngine.Decision.NOT_ARMED
         publishStatus(error = getString(R.string.status_listener_disconnected))
         requestRebind(listenerComponent)
         super.onListenerDisconnected()
@@ -169,6 +171,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
         cancelPendingResume()
         spotifyController = nextController
         decisionEngine.reset()
+        lastDecision = ResumeDecisionEngine.Decision.NOT_ARMED
         nextController?.registerCallback(playbackCallback, mainHandler)
         handlePlaybackState(nextController?.playbackState)
         publishStatus()
@@ -183,6 +186,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
         when (state.state) {
             PlaybackState.STATE_PLAYING -> {
                 decisionEngine.onPlaying()
+                lastDecision = ResumeDecisionEngine.Decision.NOT_ARMED
                 publishStatus(playback = getString(R.string.playback_playing))
             }
 
@@ -224,6 +228,7 @@ class SpotifyPlaybackListener : NotificationListenerService() {
 
         try {
             controller.transportControls.play()
+            decisionEngine.onAutoResume()
         } catch (_: IllegalStateException) {
             publishStatus(error = getString(R.string.status_session_expired))
             refreshSessions()

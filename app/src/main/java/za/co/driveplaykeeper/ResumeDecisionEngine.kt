@@ -10,12 +10,13 @@ class ResumeDecisionEngine(private val clock: () -> Long) {
     fun onPlaying() { if (playingSinceMs == null) playingSinceMs = clock(); suppressUntilPlaybackRestarts = false }
     fun onNotPlaying() { playingSinceMs = null }
     fun onPowerEvent() { lastPowerEventMs = clock() }
+    fun onAutoResume() { lastAutoResumeMs = clock() }
     fun onAndroidAutoDisconnected() { playingSinceMs = null; lastAutoResumeMs = null; lastPowerEventMs = null; suppressUntilPlaybackRestarts = true }
 
     fun decide(enabled: Boolean, androidAutoConnected: Boolean, requireAndroidAuto: Boolean, requirePowerEvent: Boolean, minimumPlayingTimeMs: Long, manualPauseWindowMs: Long, powerEventWindowMs: Long = 10_000L): Decision {
         val now = clock()
-        val startedAt = playingSinceMs ?: return Decision.NOT_ARMED
         if (!enabled) return Decision.DISABLED
+        val startedAt = playingSinceMs ?: return Decision.NOT_ARMED
         if (requireAndroidAuto && !androidAutoConnected) return Decision.NO_ANDROID_AUTO
         if (now - startedAt < minimumPlayingTimeMs) return Decision.NOT_ARMED
         if (suppressUntilPlaybackRestarts) return Decision.SUPPRESSED
@@ -25,7 +26,6 @@ class ResumeDecisionEngine(private val clock: () -> Long) {
             val powerEvent = lastPowerEventMs ?: return Decision.NO_RECENT_POWER_EVENT
             if (now - powerEvent > powerEventWindowMs) return Decision.NO_RECENT_POWER_EVENT
         }
-        lastAutoResumeMs = now
         return Decision.RESUME
     }
 
