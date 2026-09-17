@@ -40,4 +40,14 @@
     <string name="playback_unavailable">waiting</string>
     <string name="how_it_works_title">How it behaves</string>
     <string name="how_it_works">After Spotify has played continuously for four seconds, DrivePlay Keeper treats the next Pause as the car’s ignition pause and sends Play once. If someone presses Pause again within eight seconds, that second pause is treated as intentional. Protection resets when playback is deliberately started again.\n\nKeep “Only act while Android Auto is connected” enabled for normal use. Try the power-change option only if the phone briefly stops or starts charging when the engine starts.</string>
+    <string name="resume_delay_format">Resume delay: %1$d ms</string>
+    <string name="minimum_playing_format">Arm after playing: %1$d seconds</string>
+    <string name="manual_pause_window_format">Manual-pause window: %1$d seconds</string>
+    <string name="media_app">Media app</string>
+    <string name="status_protection_format">Protection: %1$s</string>
+    <string name="protection_not_armed">not armed</string>
+    <string name="decision_history_empty">Recent decisions: none yet</string>
+    <string name="decision_history_format">Recent decisions:
+%1$s</string>
+    <string name="status_session_expired">Media session changed; reconnecting</string>
 </resources>

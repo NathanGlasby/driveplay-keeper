@@ -13,11 +13,15 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
 import android.view.View
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.LinearLayout
+import android.widget.ArrayAdapter
+import android.widget.SeekBar
+import android.widget.Spinner
 import android.widget.ScrollView
 import android.widget.Space
 import android.widget.Switch
@@ -35,6 +39,8 @@ class MainActivity : Activity() {
     private lateinit var carStatus: TextView
     private lateinit var spotifyStatus: TextView
     private lateinit var playbackStatus: TextView
+    private lateinit var protectionStatus: TextView
+    private lateinit var historyStatus: TextView
     private var statusReceiverRegistered = false
 
     private val statusReceiver = object : BroadcastReceiver() {
@@ -68,9 +74,11 @@ class MainActivity : Activity() {
             intent.getStringExtra(SpotifyPlaybackListener.EXTRA_PLAYBACK)?.let {
                 playbackStatus.text = getString(R.string.status_playback_format, it)
             }
-            error?.let {
-                playbackStatus.text = it
+            intent.getStringExtra(SpotifyPlaybackListener.EXTRA_DECISION)?.let { decision ->
+                protectionStatus.text = getString(R.string.status_protection_format, decision.lowercase().replace('_', ' '))
             }
+            historyStatus.text = formatDecisionHistory()
+            error?.let { playbackStatus.text = it }
         }
     }
 
@@ -167,6 +175,40 @@ class MainActivity : Activity() {
             }
         }
         content.addView(pauseOnDisconnect)
+
+        fun addTimingControl(labelRes: Int, min: Int, max: Int, step: Int, initial: Long, onChange: (Long) -> Unit) {
+            val label = TextView(this).apply { textSize = 14f; setTextColor(Color.WHITE) }
+            val update: (Int) -> Unit = { progress ->
+                val value = min + progress * step
+                label.text = getString(labelRes, value)
+                onChange(value.toLong())
+            }
+            content.addView(label)
+            content.addView(SeekBar(this).apply {
+                this.max = (max - min) / step
+                progress = ((initial.toInt() - min) / step).coerceIn(0, this.max)
+                setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) { update(progress) }
+                    override fun onStartTrackingTouch(seekBar: SeekBar?) = Unit
+                    override fun onStopTrackingTouch(seekBar: SeekBar?) = Unit
+                })
+                update(progress)
+            })
+        }
+        addTimingControl(R.string.resume_delay_format, 300, 3000, 100, preferences.resumeDelayMs) { preferences.resumeDelayMs = it }
+        addTimingControl(R.string.minimum_playing_format, 1, 15, 1, preferences.minimumPlayingTimeMs / 1000) { preferences.minimumPlayingTimeMs = it * 1000 }
+        addTimingControl(R.string.manual_pause_window_format, 2, 20, 1, preferences.manualPauseWindowMs / 1000) { preferences.manualPauseWindowMs = it * 1000 }
+
+        content.addView(TextView(this).apply { text = getString(R.string.media_app); setTextColor(Color.WHITE) })
+        val mediaPackages = listOf(AppPreferences.SPOTIFY_PACKAGE, AppPreferences.YOUTUBE_MUSIC_PACKAGE)
+        content.addView(Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, listOf("Spotify", "YouTube Music"))
+            setSelection(mediaPackages.indexOf(preferences.mediaPackage).coerceAtLeast(0))
+            onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) { preferences.mediaPackage = mediaPackages[position] }
+                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
+            }
+        })
         content.addView(TextView(this).apply {
             text = getString(R.string.disconnect_pause_explanation)
             textSize = 13f
@@ -207,11 +249,13 @@ class MainActivity : Activity() {
         content.addView(Button(this).apply {
             text = getString(R.string.open_battery_settings)
             setOnClickListener {
-                val appSettings = Intent(
-                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    Uri.fromParts("package", packageName, null),
+                val intent = Intent(
+                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:$packageName"),
                 )
-                startActivity(appSettings)
+                try { startActivity(intent) } catch (_: Exception) {
+                    startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+                }
             }
         })
 
@@ -224,12 +268,16 @@ class MainActivity : Activity() {
         carStatus = statusLine(getString(R.string.status_android_auto_unknown))
         spotifyStatus = statusLine(getString(R.string.status_spotify_not_found))
         playbackStatus = statusLine(getString(R.string.status_playback_format, getString(R.string.playback_unavailable)))
+        protectionStatus = statusLine(getString(R.string.status_protection_format, getString(R.string.protection_not_armed)))
+        historyStatus = statusLine(formatDecisionHistory())
         content.addView(accessStatus)
         content.addView(monitorStatus)
         content.addView(batteryStatus)
         content.addView(carStatus)
         content.addView(spotifyStatus)
         content.addView(playbackStatus)
+        content.addView(protectionStatus)
+        content.addView(historyStatus)
 
         content.addView(Space(this), LinearLayout.LayoutParams(1, dp(24)))
         content.addView(sectionTitle(getString(R.string.how_it_works_title)))
@@ -300,6 +348,16 @@ class MainActivity : Activity() {
                 getString(R.string.status_monitor_recovery_update, formattedTime)
             else -> getString(R.string.status_monitor_never_connected)
         }
+    }
+
+    private fun formatDecisionHistory(): String {
+        val lines = preferences.decisionHistory.take(5).mapNotNull { entry ->
+            val parts = entry.split('|', limit = 2)
+            val time = parts.firstOrNull()?.toLongOrNull() ?: return@mapNotNull null
+            val message = parts.getOrNull(1) ?: return@mapNotNull null
+            DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(time)) + "  " + message
+        }
+        return if (lines.isEmpty()) getString(R.string.decision_history_empty) else getString(R.string.decision_history_format, lines.joinToString("\n"))
     }
 
     private fun updateBatteryStatus() {

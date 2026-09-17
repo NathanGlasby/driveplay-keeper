@@ -20,3 +20,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       - name: Run tests and lint
         run: ./gradlew testDebugUnitTest lintDebug packageDebugApk
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DrivePlayKeeper-debug
+          path: artifacts/*-debug.apk

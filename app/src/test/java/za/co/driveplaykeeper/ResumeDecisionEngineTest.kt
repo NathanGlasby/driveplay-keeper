@@ -68,4 +68,15 @@ class ResumeDecisionEngineTest {
         now = 10_000L
         assertTrue(engine.shouldResume(true, true, true, false))
     }
+
+    @Test
+    fun configurableArmAndManualPauseWindowsAreUsed() {
+        engine.onPlaying()
+        now = 2_000L
+        assertTrue(engine.shouldResume(true, true, true, false, minimumPlayingTimeMs = 1_000L, manualPauseWindowMs = 2_000L))
+        engine.onNotPlaying()
+        engine.onPlaying()
+        now = 5_000L
+        assertTrue(engine.shouldResume(true, true, true, false, minimumPlayingTimeMs = 1_000L, manualPauseWindowMs = 2_000L))
+    }
 }

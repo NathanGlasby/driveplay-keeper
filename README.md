@@ -9,9 +9,7 @@ Android media session and sends Play once after the unwanted pause.
 
 ## How it behaves
 
-Spotify must be playing for at least four seconds before protection is armed.
-While Android Auto is connected, the next Pause is treated as the car's ignition
-pause and playback resumes after 900 milliseconds.
+The selected media app must be playing long enough for protection to arm. While Android Auto is connected, the next Pause is treated as the car's ignition pause and playback resumes after the configured delay. The app includes presets for Spotify and YouTube Music, and the timing controls are adjustable.
 
 An intentional pause still works. Press Pause again within eight seconds and the
 app leaves it alone. DrivePlay Keeper only reacts to a paused session, so a
@@ -28,7 +26,7 @@ DrivePlay Keeper requires Android 9 or newer.
 5. Leave **Only act while Android Auto is connected** enabled.
 6. Start Spotify through Android Auto and let it play for at least four seconds.
 
-The live status section shows whether the app can see Android Auto and Spotify.
+The live status section shows whether the app can see Android Auto and the selected media app, why protection did or did not fire, and a short decision history.
 
 For reliable background operation, open the app's battery settings and select
 **Unrestricted** or **Allow background usage**. On phones with Sleeping or Deep
